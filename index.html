@@ -965,41 +965,44 @@ function selectMatch(type, key) {
   }
 
   // If both selected, check match
-  if (matchSelectedWord && matchSelectedMeaning) {
+ // Hàm selectMatch gốc, bạn chỉ cần sửa phần if (matchSelectedWord === matchSelectedMeaning)
+if (matchSelectedWord && matchSelectedMeaning) {
     const wEl = document.getElementById(`mw-${matchSelectedWord}`);
     const mEl = document.getElementById(`mm-${matchSelectedMeaning}`);
     matchTotal++;
 
     if (matchSelectedWord === matchSelectedMeaning) {
-      // Correct
-      matchScore++;
-      wEl.classList.remove('selected'); mEl.classList.remove('selected');
-      wEl.classList.add('matched-correct'); mEl.classList.add('matched-correct');
-      playSound(true);
-      document.getElementById('matchStatus').textContent = `✓ Đúng rồi! +1`;
+        // ĐÚNG: Xóa cả hai phần tử khỏi giao diện
+        if (wEl) wEl.remove();
+        if (mEl) mEl.remove();
+        matchScore++;
+        playSound(true);
+        document.getElementById('matchStatus').textContent = `✓ Đúng rồi! +1`;
 
-      // Check if all matched
-      const allMatched = document.querySelectorAll('.match-item:not(.matched-correct)').length === 0;
-      if (allMatched) {
-        gameCorrect = matchScore;
-        gameQuestions = Array(matchTotal).fill(null);
-        setTimeout(() => showMatchSummary(), 600);
-      }
+        // Kiểm tra xem còn cặp nào chưa được ghép không
+        const remainingPairs = document.querySelectorAll('#wordCol .match-item:not(.matched-correct)').length;
+        if (remainingPairs === 0) {
+            // Tất cả đã biến mất -> kết thúc game
+            gameCorrect = matchScore;
+            gameQuestions = Array(matchTotal).fill(null);
+            setTimeout(() => showMatchSummary(), 600);
+        }
     } else {
-      // Wrong
-      wEl.classList.add('matched-wrong'); mEl.classList.add('matched-wrong');
-      playSound(false);
-      document.getElementById('matchStatus').textContent = `✗ Sai! Hãy thử lại.`;
-      setTimeout(() => {
-        wEl.classList.remove('matched-wrong', 'selected');
-        mEl.classList.remove('matched-wrong', 'selected');
-        document.getElementById('matchStatus').textContent = '';
-      }, 800);
+        // SAI: giữ nguyên hiệu ứng báo sai
+        wEl.classList.add('matched-wrong');
+        mEl.classList.add('matched-wrong');
+        playSound(false);
+        document.getElementById('matchStatus').textContent = `✗ Sai! Hãy thử lại.`;
+        setTimeout(() => {
+            wEl.classList.remove('matched-wrong', 'selected');
+            mEl.classList.remove('matched-wrong', 'selected');
+            document.getElementById('matchStatus').textContent = '';
+        }, 800);
     }
 
+    // Reset selection
     matchSelectedWord = null;
     matchSelectedMeaning = null;
-  }
 }
 
 function showMatchSummary() {
