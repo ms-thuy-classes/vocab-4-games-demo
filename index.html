@@ -194,7 +194,6 @@
 
   .match-item:hover { transform: scale(1.03); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
   .match-item.selected { border-color: #8b5cf6; transform: scale(1.05); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3); }
-  .match-item.matched-correct { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #34d399; opacity: 0.7; cursor: default; }
   .match-item.matched-wrong { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #f87171; }
 
   /* ============ TABLE ============ */
@@ -434,10 +433,6 @@
   </div>
 </div>
 
-<!-- ========== SOUNDS ========== -->
-<audio id="correctSound" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbv4RBLjJgm9LSuoFCMD9umN3Ot4VGPEZzl9fPs4VHR1J7ldLOrIdMTV2Ii8m1kJFbY3CDiMOtm5RqbXeDi76snJRxdHyEjsKpm5Fxen+Gkb+noZFze4CGk76lnpB1e3+Ekrykmo5yfH+Dkrqglo5ze36CkbigmpByfH+BkLegmpBzfH6AkLagmZB0fH6AkLWgmZF0fH6AkLagmZF0fH6AkLWgmJF0fH6AkLagmZF0" style="display:none"></audio>
-<audio id="wrongSound" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbv4RBLjJgm9LSuoFCMD9umN3Ot4VGPEZzl9fPs4VHR1J7ldLOrIdMTV2Ii8m1kJFbY3CDiMOtm5RqbXeDi76snJRxdHyEjsKpm5Fxen+Gkb+noZFze4CGk76lnpB1e3+Ekrykmo5yfH+Dkrqglo5ze36CkbigmpByfH+BkLegmpBzfH6AkLWgmZB0fH6AkLagmZF0fH6AkLagmZF0fH6AkLWgmJF0fH6AkLagmZF0" style="display:none"></audio>
-
 <script>
 // ===================================================
 // DATA & STATE
@@ -456,12 +451,13 @@ let gameAnswered = false;
 
 // Scores (latest per game)
 let scores = JSON.parse(localStorage.getItem('vocabScores') || '{}');
-// e.g. {quiz: {correct:10, total:30}, listenWord:{...}, typing:{...}, matching:{...}, listenSentence:{...}}
 
 // Matching state
-let matchSelected = null;
 let matchPairs = [];
-let matchCorrectCount = 0;
+let matchSelectedWord = null;
+let matchSelectedMeaning = null;
+let matchScore = 0;
+let matchTotal = 0;
 
 // ===================================================
 // INIT: Load vocab
@@ -897,20 +893,24 @@ function nextGameQuestion() {
 }
 
 // ===================================================
-// MATCHING GAME
+// MATCHING GAME (FIXED: items disappear when correct)
 // ===================================================
 function startMatching() {
-  matchSelected = null;
-  matchCorrectCount = 0;
-  // Use all vocab
-  matchPairs = shuffle([...vocab]).map(v => ({ word: v.word, meaning: v.meaning, matched: false }));
+  // Reset matching state
+  matchSelectedWord = null;
+  matchSelectedMeaning = null;
+  matchScore = 0;
+  matchTotal = 0;
+  // Use all vocab, each pair once
+  matchPairs = shuffle([...vocab]).map(v => ({ word: v.word, meaning: v.meaning }));
 
   document.getElementById('gameProgressWrap').style.display = 'none';
   renderMatchingBoard();
 }
 
 function renderMatchingBoard() {
-  const page = matchPairs.slice(0, 10); // Show 10 at a time for usability
+  // Take first 10 pairs for better usability (can be adjusted)
+  const page = matchPairs.slice(0, 10);
   const words = shuffle([...page]);
   const meanings = shuffle([...page]);
 
@@ -938,17 +938,11 @@ function renderMatchingBoard() {
   `;
 }
 
-let matchSelectedWord = null;
-let matchSelectedMeaning = null;
-let matchScore = 0;
-let matchTotal = 0;
-
 function selectMatch(type, key) {
   const el = document.getElementById(type === 'word' ? `mw-${key}` : `mm-${key}`);
-  if (!el || el.classList.contains('matched-correct')) return;
+  if (!el) return; // already removed
 
   if (type === 'word') {
-    // Deselect previous
     if (matchSelectedWord) {
       const prev = document.getElementById(`mw-${matchSelectedWord}`);
       if (prev) prev.classList.remove('selected');
@@ -965,48 +959,47 @@ function selectMatch(type, key) {
   }
 
   // If both selected, check match
- // Hàm selectMatch gốc, bạn chỉ cần sửa phần if (matchSelectedWord === matchSelectedMeaning)
-if (matchSelectedWord && matchSelectedMeaning) {
+  if (matchSelectedWord && matchSelectedMeaning) {
     const wEl = document.getElementById(`mw-${matchSelectedWord}`);
     const mEl = document.getElementById(`mm-${matchSelectedMeaning}`);
     matchTotal++;
 
     if (matchSelectedWord === matchSelectedMeaning) {
-        // ĐÚNG: Xóa cả hai phần tử khỏi giao diện
-        if (wEl) wEl.remove();
-        if (mEl) mEl.remove();
-        matchScore++;
-        playSound(true);
-        document.getElementById('matchStatus').textContent = `✓ Đúng rồi! +1`;
+      // Correct: remove both elements
+      if (wEl) wEl.remove();
+      if (mEl) mEl.remove();
+      matchScore++;
+      playSound(true);
+      document.getElementById('matchStatus').textContent = `✓ Đúng rồi! +1`;
 
-        // Kiểm tra xem còn cặp nào chưa được ghép không
-        const remainingPairs = document.querySelectorAll('#wordCol .match-item:not(.matched-correct)').length;
-        if (remainingPairs === 0) {
-            // Tất cả đã biến mất -> kết thúc game
-            gameCorrect = matchScore;
-            gameQuestions = Array(matchTotal).fill(null);
-            setTimeout(() => showMatchSummary(), 600);
-        }
+      // Check if all pairs are gone
+      const remaining = document.querySelectorAll('#wordCol .match-item').length;
+      if (remaining === 0) {
+        gameCorrect = matchScore;
+        gameQuestions = Array(matchTotal).fill(null);
+        setTimeout(() => showMatchSummary(), 600);
+      }
     } else {
-        // SAI: giữ nguyên hiệu ứng báo sai
-        wEl.classList.add('matched-wrong');
-        mEl.classList.add('matched-wrong');
-        playSound(false);
-        document.getElementById('matchStatus').textContent = `✗ Sai! Hãy thử lại.`;
-        setTimeout(() => {
-            wEl.classList.remove('matched-wrong', 'selected');
-            mEl.classList.remove('matched-wrong', 'selected');
-            document.getElementById('matchStatus').textContent = '';
-        }, 800);
+      // Wrong: temporary error effect
+      wEl.classList.add('matched-wrong');
+      mEl.classList.add('matched-wrong');
+      playSound(false);
+      document.getElementById('matchStatus').textContent = `✗ Sai! Hãy thử lại.`;
+      setTimeout(() => {
+        if (wEl) wEl.classList.remove('matched-wrong', 'selected');
+        if (mEl) mEl.classList.remove('matched-wrong', 'selected');
+        document.getElementById('matchStatus').textContent = '';
+      }, 800);
     }
 
-    // Reset selection
+    // Clear selection
     matchSelectedWord = null;
     matchSelectedMeaning = null;
+  }
 }
 
 function showMatchSummary() {
-  const pct = Math.round((matchScore / matchTotal) * 100);
+  const pct = matchTotal > 0 ? Math.round((matchScore / matchTotal) * 100) : 0;
   scores['matching'] = { correct: matchScore, total: matchTotal };
   saveScores();
   updateScoreDisplay();
@@ -1017,7 +1010,7 @@ function showMatchSummary() {
       <h3 class="font-black text-2xl text-purple-700">Ghép cặp hoàn thành!</h3>
       <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-5">
         <div class="font-black text-5xl text-purple-600">${matchScore} <span class="text-2xl text-gray-400">/ ${matchTotal}</span></div>
-        <div class="font-bold text-gray-500 mt-1">Số lần đúng / Tổng số lần ghép</div>
+        <div class="font-bold text-gray-500 mt-1">Số cặp đúng / Tổng số lần ghép</div>
       </div>
       <button onclick="closeModal()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 text-white font-black text-base shadow hover:scale-105 transition">
         Đóng
@@ -1041,7 +1034,6 @@ function showGameSummary() {
   saveScores();
   updateScoreDisplay();
 
-  // Find wrong ones
   document.getElementById('gameContent').innerHTML = `
     <div class="text-center space-y-5">
       <div class="text-6xl">${pct >= 80 ? '🏆' : pct >= 50 ? '😊' : '💪'}</div>
@@ -1111,7 +1103,7 @@ function showSummary() {
           <p class="font-black text-3xl text-orange-600">${avgPct}% <span class="text-lg font-bold text-gray-400">Độ chính xác TB</span></p>
           <table class="w-full text-sm rounded-xl overflow-hidden">
             <tbody>${gameRows}</tbody>
-          </table>
+           </table>
         </div>
       </div>
     </div>
