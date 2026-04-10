@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VocabFlow — Learn Smarter</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pastel-purple: #c084fc;
+    --pastel-blue: #93c5fd;
+    --pastel-green: #86efac;
+    --pastel-orange: #fdba74;
+    --pastel-pink: #f9a8d4;
+    --pastel-yellow: #fde68a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: linear-gradient(135deg, #fdf4ff 0%, #eff6ff 40%, #f0fdf4 70%, #fff7ed 100%);
+    min-height: 100vh;
+    color: #3b3b5c;
+  }
+
+  /* ============ FLASHCARD ============ */
+  .flashcard-scene {
+    perspective: 1200px;
+    width: 100%;
+    max-width: 600px;
+    height: 280px;
+    margin: 0 auto;
+    cursor: pointer;
+  }
+
+  .flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .flashcard-inner.flipped { transform: rotateY(180deg); }
+
+  .flashcard-front, .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    box-shadow: 0 20px 60px rgba(192, 132, 252, 0.2), 0 4px 20px rgba(0,0,0,0.06);
+  }
+
+  .flashcard-front {
+    background: linear-gradient(135deg, #f5f0ff 0%, #eff6ff 100%);
+    border: 2px solid rgba(192, 132, 252, 0.2);
+  }
+
+  .flashcard-back {
+    background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+    border: 2px solid rgba(134, 239, 172, 0.3);
+    transform: rotateY(180deg);
+    text-align: center;
+  }
+
+  .collocation {
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-color: #f472b6;
+    text-decoration-thickness: 2px;
+    color: #7c3aed;
+  }
+
+  /* ============ PRACTICE BUTTONS ============ */
+  .practice-card {
+    border-radius: 20px;
+    padding: 20px 16px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: none;
+    outline: none;
+    text-align: center;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #3b3b5c;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .practice-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+  }
+
+  .practice-card:active { transform: scale(0.97); }
+
+  .pc-quiz     { background: linear-gradient(135deg, #e9d5ff, #bfdbfe); }
+  .pc-listen   { background: linear-gradient(135deg, #bfdbfe, #a7f3d0); }
+  .pc-type     { background: linear-gradient(135deg, #fde68a, #fca5a5); }
+  .pc-match    { background: linear-gradient(135deg, #a7f3d0, #6ee7b7); }
+  .pc-sentence { background: linear-gradient(135deg, #fca5a5, #f9a8d4); }
+
+  /* ============ MODAL GAME ============ */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(59, 59, 92, 0.5);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal-box {
+    background: white;
+    border-radius: 28px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 32px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.15);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+  }
+
+  .modal-overlay.active .modal-box {
+    transform: translateY(0);
+  }
+
+  /* ============ ANSWER FEEDBACK ============ */
+  .feedback-correct {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border: 2px solid #34d399;
+    color: #065f46;
+    border-radius: 16px;
+    padding: 16px;
+    animation: popIn 0.3s ease;
+  }
+
+  .feedback-wrong {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border: 2px solid #f87171;
+    color: #7f1d1d;
+    border-radius: 16px;
+    padding: 16px;
+    animation: shake 0.4s ease;
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  /* ============ MATCHING GAME ============ */
+  .match-item {
+    border-radius: 14px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .match-word { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+  .match-meaning { background: linear-gradient(135deg, #e0f2fe, #bae6fd); }
+
+  .match-item:hover { transform: scale(1.03); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .match-item.selected { border-color: #8b5cf6; transform: scale(1.05); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3); }
+  .match-item.matched-correct { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #34d399; opacity: 0.7; cursor: default; }
+  .match-item.matched-wrong { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #f87171; }
+
+  /* ============ TABLE ============ */
+  .vocab-table { border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.06); }
+  .vocab-table thead th { position: sticky; top: 0; background: linear-gradient(135deg, #ede9fe, #dbeafe); }
+  .vocab-table tr:nth-child(even) td { background: #faf5ff; }
+
+  /* ============ PIE CHART ============ */
+  .pie-svg circle { transition: stroke-dashoffset 1s ease; }
+
+  /* ============ SCROLLBAR ============ */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 10px; }
+
+  /* ============ OPTION BUTTONS ============ */
+  .option-btn {
+    width: 100%;
+    text-align: left;
+    padding: 14px 20px;
+    border-radius: 14px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Nunito', sans-serif;
+    color: #3b3b5c;
+  }
+
+  .option-btn:hover { border-color: #a78bfa; background: #f5f3ff; transform: translateX(4px); }
+  .option-btn.correct { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #34d399; color: #065f46; }
+  .option-btn.wrong { background: linear-gradient(135deg, #fee2e2, #fecaca); border-color: #f87171; color: #7f1d1d; }
+  .option-btn:disabled { cursor: default; }
+
+  /* ============ PROGRESS BAR ============ */
+  .progress-bar-fill {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #a78bfa, #60a5fa);
+    transition: width 0.4s ease;
+  }
+
+  /* ============ SUMMARY CARD ============ */
+  .summary-card {
+    background: linear-gradient(135deg, #fdf4ff, #fff7ed, #eff6ff);
+    border-radius: 24px;
+    border: 2px solid rgba(249, 168, 212, 0.4);
+    box-shadow: 0 16px 48px rgba(251, 113, 133, 0.1);
+  }
+
+  /* ============ SWIPE INDICATOR ============ */
+  .swipe-hint {
+    font-size: 0.75rem;
+    color: #a78bfa;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<header class="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-purple-100 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center shadow">
+        <span class="text-white text-lg">✦</span>
+      </div>
+      <span class="font-black text-xl bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">VocabFlow</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <input id="searchInput" type="text" placeholder="🔍 Tìm từ..." oninput="filterTable()"
+          class="text-sm pl-3 pr-3 py-2 rounded-full border border-purple-200 bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-300 w-36 sm:w-48 font-semibold">
+      </div>
+      <select id="filterSelect" onchange="filterTable()" class="text-sm px-3 py-2 rounded-full border border-blue-200 bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 font-semibold">
+        <option value="all">Tất cả</option>
+        <option value="learned">Đã học</option>
+        <option value="unlearned">Chưa học</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<!-- ========== MAIN ========== -->
+<main class="max-w-5xl mx-auto px-4 py-6 space-y-8">
+
+  <!-- ===== FLASHCARD SECTION ===== -->
+  <section>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-black text-2xl text-purple-700">📚 Flashcards</h2>
+      <span id="cardProgress" class="font-bold text-sm text-purple-400 bg-purple-50 px-3 py-1 rounded-full">1 / 30</span>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="w-full h-1.5 bg-purple-100 rounded-full mb-5 overflow-hidden">
+      <div id="cardProgressBar" class="progress-bar-fill" style="width:3.3%"></div>
+    </div>
+
+    <!-- Flashcard -->
+    <div class="flashcard-scene" id="flashcardScene" onclick="flipCard()">
+      <div class="flashcard-inner" id="flashcardInner">
+        <!-- FRONT -->
+        <div class="flashcard-front">
+          <p class="text-xs font-bold text-purple-300 uppercase tracking-widest mb-3">Nhấn để xem nghĩa</p>
+          <h1 id="cardWord" class="font-black text-5xl text-purple-700 mb-2">decision</h1>
+          <p id="cardIpa" class="font-medium text-lg text-blue-400 font-mono">/dɪˈsɪʒən/</p>
+          <div class="mt-5 flex items-center gap-2">
+            <button onclick="event.stopPropagation(); speakWord()" class="bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-full p-2 transition" title="Phát âm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-3.536-9.536a5 5 0 000 7.072"/></svg>
+            </button>
+            <span class="text-xs text-purple-300 font-semibold">Phát âm từ</span>
+          </div>
+        </div>
+        <!-- BACK -->
+        <div class="flashcard-back">
+          <p class="text-xs font-bold text-green-400 uppercase tracking-widest mb-2">Nghĩa</p>
+          <h2 id="cardMeaning" class="font-black text-3xl text-green-700 mb-4">quyết định</h2>
+          <div class="bg-white/60 rounded-2xl px-5 py-3 max-w-sm w-full">
+            <p id="cardExample" class="font-semibold text-base text-gray-700 mb-1 italic" style="font-family:'Lora',serif"></p>
+            <p id="cardExampleVi" class="text-sm text-gray-400 font-medium"></p>
+          </div>
+          <button onclick="event.stopPropagation(); speakSentence()" class="mt-4 bg-green-100 hover:bg-green-200 text-green-600 rounded-full px-4 py-2 text-xs font-bold flex items-center gap-1 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+            Nghe câu ví dụ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <p class="swipe-hint text-center mt-3">👆 Nhấn thẻ để lật · Vuốt hoặc dùng mũi tên để chuyển</p>
+
+    <!-- Nav Buttons -->
+    <div class="flex justify-center items-center gap-5 mt-4">
+      <button onclick="prevCard()" class="w-12 h-12 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold text-xl transition hover:scale-110 flex items-center justify-center shadow">‹</button>
+      <button onclick="markLearned()" id="learnedBtn" class="px-5 py-2.5 rounded-full bg-gradient-to-r from-green-300 to-teal-300 hover:from-green-400 hover:to-teal-400 text-white font-black text-sm shadow transition hover:scale-105">✓ Đã thuộc</button>
+      <button onclick="nextCard()" class="w-12 h-12 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold text-xl transition hover:scale-110 flex items-center justify-center shadow">›</button>
+    </div>
+  </section>
+
+  <!-- ===== PRACTICE BUTTONS ===== -->
+  <section>
+    <h2 class="font-black text-2xl text-purple-700 mb-4">🎮 Luyện tập</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+
+      <button class="practice-card pc-quiz" onclick="openGame('quiz')">
+        <div class="text-3xl mb-2">📝</div>
+        <div class="font-black text-sm">Trắc nghiệm</div>
+        <div class="text-xs font-semibold opacity-60 mt-1">Điền vào câu</div>
+        <div id="score-quiz" class="mt-2 text-xs font-bold text-purple-600"></div>
+      </button>
+
+      <button class="practice-card pc-listen" onclick="openGame('listenWord')">
+        <div class="text-3xl mb-2">🎧</div>
+        <div class="font-black text-sm">Nghe từ</div>
+        <div class="text-xs font-semibold opacity-60 mt-1">Chọn từ đúng</div>
+        <div id="score-listenWord" class="mt-2 text-xs font-bold text-blue-600"></div>
+      </button>
+
+      <button class="practice-card pc-type" onclick="openGame('typing')">
+        <div class="text-3xl mb-2">⌨️</div>
+        <div class="font-black text-sm">Gõ từ</div>
+        <div class="text-xs font-semibold opacity-60 mt-1">Dựa theo nghĩa</div>
+        <div id="score-typing" class="mt-2 text-xs font-bold text-yellow-600"></div>
+      </button>
+
+      <button class="practice-card pc-match" onclick="openGame('matching')">
+        <div class="text-3xl mb-2">🔗</div>
+        <div class="font-black text-sm">Ghép cặp</div>
+        <div class="text-xs font-semibold opacity-60 mt-1">Từ &amp; nghĩa</div>
+        <div id="score-matching" class="mt-2 text-xs font-bold text-green-600"></div>
+      </button>
+
+      <button class="practice-card pc-sentence col-span-2 sm:col-span-1" onclick="openGame('listenSentence')">
+        <div class="text-3xl mb-2">🎙️</div>
+        <div class="font-black text-sm">Nghe câu</div>
+        <div class="text-xs font-semibold opacity-60 mt-1">Gõ lại câu nghe</div>
+        <div id="score-listenSentence" class="mt-2 text-xs font-bold text-pink-600"></div>
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ===== SUMMARY SECTION ===== -->
+  <section>
+    <div class="summary-card p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-black text-2xl text-orange-600">🏆 Tổng kết</h2>
+        <button onclick="showSummary()" class="px-4 py-2 bg-gradient-to-r from-orange-400 to-pink-400 hover:from-orange-500 hover:to-pink-500 text-white font-black rounded-full text-sm shadow transition hover:scale-105">Xem kết quả</button>
+      </div>
+      <div id="summaryContent">
+        <p class="text-sm font-semibold text-gray-400">Hoàn thành ít nhất 1 trò chơi để xem tổng kết.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== VOCABULARY TABLE ===== -->
+  <section>
+    <h2 class="font-black text-2xl text-purple-700 mb-4">📖 Danh sách từ vựng</h2>
+    <div class="vocab-table overflow-x-auto" style="max-height:500px; overflow-y:auto;">
+      <table class="w-full min-w-[600px] text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-3 text-left font-black text-purple-700 text-xs uppercase tracking-wider">STT</th>
+            <th class="px-4 py-3 text-left font-black text-purple-700 text-xs uppercase tracking-wider">Từ tiếng Anh</th>
+            <th class="px-4 py-3 text-left font-black text-purple-700 text-xs uppercase tracking-wider">IPA</th>
+            <th class="px-4 py-3 text-left font-black text-purple-700 text-xs uppercase tracking-wider">Nghĩa tiếng Việt</th>
+            <th class="px-4 py-3 text-left font-black text-purple-700 text-xs uppercase tracking-wider">Câu ví dụ</th>
+          </tr>
+        </thead>
+        <tbody id="vocabTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- ========== GAME MODAL ========== -->
+<div class="modal-overlay" id="gameModal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-5">
+      <h3 id="gameTitle" class="font-black text-xl text-purple-700"></h3>
+      <button onclick="closeModal()" class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold text-lg flex items-center justify-center transition">✕</button>
+    </div>
+    <div id="gameProgressWrap" class="mb-4">
+      <div class="flex justify-between text-xs font-bold text-gray-400 mb-1">
+        <span id="gameProgressLabel">Câu 1 / 30</span>
+        <span id="gameScoreLabel">Đúng: 0</span>
+      </div>
+      <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div id="gameProgressBar" class="progress-bar-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div id="gameContent"></div>
+  </div>
+</div>
+
+<!-- ========== SOUNDS ========== -->
+<audio id="correctSound" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbv4RBLjJgm9LSuoFCMD9umN3Ot4VGPEZzl9fPs4VHR1J7ldLOrIdMTV2Ii8m1kJFbY3CDiMOtm5RqbXeDi76snJRxdHyEjsKpm5Fxen+Gkb+noZFze4CGk76lnpB1e3+Ekrykmo5yfH+Dkrqglo5ze36CkbigmpByfH+BkLegmpBzfH6AkLagmZB0fH6AkLWgmZF0fH6AkLagmZF0fH6AkLWgmJF0fH6AkLagmZF0" style="display:none"></audio>
+<audio id="wrongSound" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbv4RBLjJgm9LSuoFCMD9umN3Ot4VGPEZzl9fPs4VHR1J7ldLOrIdMTV2Ii8m1kJFbY3CDiMOtm5RqbXeDi76snJRxdHyEjsKpm5Fxen+Gkb+noZFze4CGk76lnpB1e3+Ekrykmo5yfH+Dkrqglo5ze36CkbigmpByfH+BkLegmpBzfH6AkLWgmZB0fH6AkLagmZF0fH6AkLagmZF0fH6AkLWgmJF0fH6AkLagmZF0" style="display:none"></audio>
+
+<script>
+// ===================================================
+// DATA & STATE
+// ===================================================
+let vocab = [];
+let currentCard = 0;
+let isFlipped = false;
+let learnedSet = new Set(JSON.parse(localStorage.getItem('learnedWords') || '[]'));
+
+// Game state
+let currentGame = null;
+let gameQuestions = [];
+let gameCurrentQ = 0;
+let gameCorrect = 0;
+let gameAnswered = false;
+
+// Scores (latest per game)
+let scores = JSON.parse(localStorage.getItem('vocabScores') || '{}');
+// e.g. {quiz: {correct:10, total:30}, listenWord:{...}, typing:{...}, matching:{...}, listenSentence:{...}}
+
+// Matching state
+let matchSelected = null;
+let matchPairs = [];
+let matchCorrectCount = 0;
+
+// ===================================================
+// INIT: Load vocab
+// ===================================================
+async function loadVocab() {
+  try {
+    const res = await fetch('vocab.json');
+    vocab = await res.json();
+  } catch {
+    // Fallback inline data
+    vocab = [
+      {word:"decision",ipa:"/dɪˈsɪʒən/",meaning:"quyết định",example:"She made a _decision_ quickly.",exampleVi:"Cô ấy đưa ra quyết định một cách nhanh chóng."},
+      {word:"commitment",ipa:"/kəˈmɪtmənt/",meaning:"sự cam kết",example:"He showed strong _commitment_ to the project.",exampleVi:"Anh ấy thể hiện sự cam kết mạnh mẽ với dự án."},
+      {word:"opportunity",ipa:"/ˌɒpəˈtjuːnəti/",meaning:"cơ hội",example:"This job is a great _opportunity_ for growth.",exampleVi:"Công việc này là một cơ hội tuyệt vời để phát triển."},
+      {word:"challenge",ipa:"/ˈtʃælɪndʒ/",meaning:"thử thách",example:"She faced a difficult _challenge_ at work.",exampleVi:"Cô ấy đối mặt với một thử thách khó khăn tại nơi làm việc."},
+      {word:"achieve",ipa:"/əˈtʃiːv/",meaning:"đạt được",example:"He worked hard to _achieve_ success.",exampleVi:"Anh ấy làm việc chăm chỉ để đạt được thành công."},
+      {word:"improve",ipa:"/ɪmˈpruːv/",meaning:"cải thiện",example:"She wants to _improve_ her English skills.",exampleVi:"Cô ấy muốn cải thiện kỹ năng tiếng Anh của mình."},
+      {word:"maintain",ipa:"/meɪnˈteɪn/",meaning:"duy trì",example:"It is important to _maintain_ a healthy lifestyle.",exampleVi:"Điều quan trọng là duy trì lối sống lành mạnh."},
+      {word:"develop",ipa:"/dɪˈveləp/",meaning:"phát triển",example:"They plan to _develop_ new strategies.",exampleVi:"Họ lên kế hoạch phát triển các chiến lược mới."},
+      {word:"increase",ipa:"/ɪnˈkriːs/",meaning:"tăng lên",example:"The company aims to _increase_ profits.",exampleVi:"Công ty nhằm tăng lợi nhuận."},
+      {word:"reduce",ipa:"/rɪˈdjuːs/",meaning:"giảm",example:"We need to _reduce_ waste.",exampleVi:"Chúng ta cần giảm rác thải."},
+      {word:"significant",ipa:"/sɪɡˈnɪfɪkənt/",meaning:"quan trọng, đáng kể",example:"There was a _significant_ improvement.",exampleVi:"Đã có một sự cải thiện đáng kể."},
+      {word:"efficient",ipa:"/ɪˈfɪʃənt/",meaning:"hiệu quả",example:"She is very _efficient_ at work.",exampleVi:"Cô ấy rất hiệu quả trong công việc."},
+      {word:"responsible",ipa:"/rɪˈspɒnsəbl/",meaning:"có trách nhiệm",example:"He is _responsible_ for managing the team.",exampleVi:"Anh ấy chịu trách nhiệm quản lý nhóm."},
+      {word:"environment",ipa:"/ɪnˈvaɪrənmənt/",meaning:"môi trường",example:"We must protect the _environment_.",exampleVi:"Chúng ta phải bảo vệ môi trường."},
+      {word:"solution",ipa:"/səˈluːʃən/",meaning:"giải pháp",example:"They found a practical _solution_.",exampleVi:"Họ tìm ra một giải pháp thực tế."},
+      {word:"issue",ipa:"/ˈɪʃuː/",meaning:"vấn đề",example:"This is a serious _issue_.",exampleVi:"Đây là một vấn đề nghiêm trọng."},
+      {word:"impact",ipa:"/ˈɪmpækt/",meaning:"tác động",example:"The policy has a major _impact_.",exampleVi:"Chính sách này có tác động lớn."},
+      {word:"benefit",ipa:"/ˈbenɪfɪt/",meaning:"lợi ích",example:"Exercise brings many _benefits_.",exampleVi:"Tập thể dục mang lại nhiều lợi ích."},
+      {word:"requirement",ipa:"/rɪˈkwaɪəmənt/",meaning:"yêu cầu",example:"This job has strict _requirements_.",exampleVi:"Công việc này có yêu cầu nghiêm ngặt."},
+      {word:"knowledge",ipa:"/ˈnɒlɪdʒ/",meaning:"kiến thức",example:"He has deep _knowledge_ of the subject.",exampleVi:"Anh ấy có kiến thức sâu về chủ đề này."},
+      {word:"experience",ipa:"/ɪkˈspɪəriəns/",meaning:"kinh nghiệm",example:"She gained valuable _experience_.",exampleVi:"Cô ấy tích lũy được kinh nghiệm quý báu."},
+      {word:"skill",ipa:"/skɪl/",meaning:"kỹ năng",example:"Communication is an important _skill_.",exampleVi:"Giao tiếp là một kỹ năng quan trọng."},
+      {word:"goal",ipa:"/ɡəʊl/",meaning:"mục tiêu",example:"He set a clear _goal_.",exampleVi:"Anh ấy đặt ra một mục tiêu rõ ràng."},
+      {word:"strategy",ipa:"/ˈstrætədʒi/",meaning:"chiến lược",example:"They developed a new _strategy_.",exampleVi:"Họ phát triển một chiến lược mới."},
+      {word:"performance",ipa:"/pəˈfɔːməns/",meaning:"hiệu suất",example:"Her _performance_ improved significantly.",exampleVi:"Hiệu suất của cô ấy được cải thiện đáng kể."},
+      {word:"result",ipa:"/rɪˈzʌlt/",meaning:"kết quả",example:"The _result_ was surprising.",exampleVi:"Kết quả thật bất ngờ."},
+      {word:"failure",ipa:"/ˈfeɪljə/",meaning:"thất bại",example:"Failure is part of learning.",exampleVi:"Thất bại là một phần của việc học hỏi."},
+      {word:"success",ipa:"/səkˈses/",meaning:"thành công",example:"Hard work leads to _success_.",exampleVi:"Làm việc chăm chỉ dẫn đến thành công."},
+      {word:"improvement",ipa:"/ɪmˈpruːvmənt/",meaning:"sự cải thiện",example:"There was a clear _improvement_.",exampleVi:"Đã có một sự cải thiện rõ rệt."},
+      {word:"analysis",ipa:"/əˈnæləsɪs/",meaning:"phân tích",example:"The report includes detailed _analysis_.",exampleVi:"Báo cáo bao gồm phân tích chi tiết."}
+    ];
+  }
+  renderCard();
+  renderTable();
+  updateScoreDisplay();
+}
+
+// ===================================================
+// FLASHCARD FUNCTIONS
+// ===================================================
+function renderCard() {
+  const v = vocab[currentCard];
+  if (!v) return;
+  document.getElementById('cardWord').textContent = v.word;
+  document.getElementById('cardIpa').textContent = v.ipa;
+  document.getElementById('cardMeaning').textContent = v.meaning;
+  document.getElementById('cardExample').innerHTML = formatExampleHTML(v.example);
+  document.getElementById('cardExampleVi').textContent = v.exampleVi || '';
+  const prog = document.getElementById('cardProgress');
+  prog.textContent = `${currentCard + 1} / ${vocab.length}`;
+  document.getElementById('cardProgressBar').style.width = `${((currentCard+1)/vocab.length)*100}%`;
+  // Update learned button
+  const lb = document.getElementById('learnedBtn');
+  if (learnedSet.has(v.word)) {
+    lb.textContent = '✓ Đã thuộc';
+    lb.className = 'px-5 py-2.5 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 text-gray-500 font-black text-sm shadow transition hover:scale-105';
+  } else {
+    lb.textContent = '✓ Đánh dấu thuộc';
+    lb.className = 'px-5 py-2.5 rounded-full bg-gradient-to-r from-green-300 to-teal-300 hover:from-green-400 hover:to-teal-400 text-white font-black text-sm shadow transition hover:scale-105';
+  }
+  // Reset flip
+  if (isFlipped) {
+    isFlipped = false;
+    document.getElementById('flashcardInner').classList.remove('flipped');
+  }
+}
+
+function formatExampleHTML(example) {
+  return example.replace(/_([^_]+)_/g, '<span class="collocation">$1</span>');
+}
+
+function formatExampleText(example) {
+  return example.replace(/_([^_]+)_/g, '$1');
+}
+
+function flipCard() {
+  isFlipped = !isFlipped;
+  document.getElementById('flashcardInner').classList.toggle('flipped', isFlipped);
+  if (isFlipped) speakWord();
+}
+
+function nextCard() {
+  currentCard = (currentCard + 1) % vocab.length;
+  renderCard();
+}
+
+function prevCard() {
+  currentCard = (currentCard - 1 + vocab.length) % vocab.length;
+  renderCard();
+}
+
+function markLearned() {
+  const word = vocab[currentCard].word;
+  if (learnedSet.has(word)) learnedSet.delete(word);
+  else learnedSet.add(word);
+  localStorage.setItem('learnedWords', JSON.stringify([...learnedSet]));
+  renderCard();
+}
+
+function speakWord() {
+  const v = vocab[currentCard];
+  if (!v) return;
+  speak(v.word);
+}
+
+function speakSentence() {
+  const v = vocab[currentCard];
+  if (!v) return;
+  speak(formatExampleText(v.example));
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
+
+// Swipe support
+let touchStartX = 0;
+document.getElementById('flashcardScene').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+document.getElementById('flashcardScene').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) { dx > 0 ? prevCard() : nextCard(); }
+}, {passive:true});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (document.getElementById('gameModal').classList.contains('active')) return;
+  if (e.key === 'ArrowRight') nextCard();
+  else if (e.key === 'ArrowLeft') prevCard();
+  else if (e.key === ' ') { e.preventDefault(); flipCard(); }
+});
+
+// ===================================================
+// TABLE
+// ===================================================
+function renderTable(filter = 'all', search = '') {
+  const tbody = document.getElementById('vocabTableBody');
+  tbody.innerHTML = '';
+  let filtered = vocab.filter((v, i) => {
+    const matchSearch = v.word.toLowerCase().includes(search.toLowerCase()) || v.meaning.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === 'all' || (filter === 'learned' && learnedSet.has(v.word)) || (filter === 'unlearned' && !learnedSet.has(v.word));
+    return matchSearch && matchFilter;
+  });
+
+  filtered.forEach((v, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="px-4 py-3 font-bold text-gray-400">${vocab.indexOf(v)+1}</td>
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-2">
+          <span class="font-black text-purple-700">${v.word}</span>
+          <button onclick="speak('${v.word}')" class="text-purple-300 hover:text-purple-500 transition" title="Phát âm">🔊</button>
+          ${learnedSet.has(v.word) ? '<span class="text-xs bg-green-100 text-green-600 font-bold px-2 py-0.5 rounded-full">✓</span>' : ''}
+        </div>
+      </td>
+      <td class="px-4 py-3 text-blue-500 font-mono text-sm">${v.ipa}</td>
+      <td class="px-4 py-3 font-semibold text-gray-600">${v.meaning}</td>
+      <td class="px-4 py-3 text-gray-500 italic text-sm" style="font-family:'Lora',serif">${formatExampleHTML(v.example)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterTable() {
+  const search = document.getElementById('searchInput').value;
+  const filter = document.getElementById('filterSelect').value;
+  renderTable(filter, search);
+}
+
+// ===================================================
+// GAME MODAL
+// ===================================================
+function openModal() {
+  document.getElementById('gameModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('gameModal').classList.remove('active');
+  window.speechSynthesis && window.speechSynthesis.cancel();
+}
+
+function openGame(type) {
+  currentGame = type;
+  gameCurrentQ = 0;
+  gameCorrect = 0;
+  gameAnswered = false;
+  gameQuestions = shuffle([...vocab]);
+
+  const titles = {
+    quiz: '📝 Trắc nghiệm — Điền vào câu',
+    listenWord: '🎧 Nghe từ — Chọn từ đúng',
+    typing: '⌨️ Gõ từ — Dựa theo nghĩa',
+    matching: '🔗 Ghép cặp — Từ & nghĩa',
+    listenSentence: '🎙️ Nghe câu — Gõ lại'
+  };
+  document.getElementById('gameTitle').textContent = titles[type];
+
+  if (type === 'matching') {
+    startMatching();
+  } else {
+    renderGameQuestion();
+  }
+  openModal();
+}
+
+function updateGameProgress() {
+  const total = gameQuestions.length;
+  const pct = (gameCurrentQ / total) * 100;
+  document.getElementById('gameProgressLabel').textContent = `Câu ${Math.min(gameCurrentQ+1, total)} / ${total}`;
+  document.getElementById('gameScoreLabel').textContent = `Đúng: ${gameCorrect}`;
+  document.getElementById('gameProgressBar').style.width = pct + '%';
+}
+
+// ===================================================
+// QUIZ GAME
+// ===================================================
+function renderGameQuestion() {
+  if (gameCurrentQ >= gameQuestions.length) { showGameSummary(); return; }
+  updateGameProgress();
+  gameAnswered = false;
+  const q = gameQuestions[gameCurrentQ];
+
+  if (currentGame === 'quiz') renderQuizQ(q);
+  else if (currentGame === 'listenWord') renderListenWordQ(q);
+  else if (currentGame === 'typing') renderTypingQ(q);
+  else if (currentGame === 'listenSentence') renderListenSentenceQ(q);
+}
+
+function renderQuizQ(q) {
+  const example = q.example;
+  const exampleHTML = example.replace(/_([^_]+)_/g, '<span class="bg-purple-100 border-b-2 border-dashed border-purple-400 px-2 rounded text-purple-700 font-bold">___</span>');
+  const wrongs = vocab.filter(v => v.word !== q.word);
+  const distractors = shuffle(wrongs).slice(0, 3).map(v => v.word);
+  const options = shuffle([q.word, ...distractors]);
+
+  document.getElementById('gameContent').innerHTML = `
+    <div class="space-y-4">
+      <p class="text-sm font-bold text-gray-400 uppercase tracking-wide">Điền từ phù hợp vào chỗ trống:</p>
+      <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 text-base font-semibold text-gray-700" style="font-family:'Lora',serif;line-height:1.8">
+        ${exampleHTML}
+      </div>
+      <div class="grid grid-cols-2 gap-3" id="optionGrid">
+        ${options.map((opt, i) => `
+          <button class="option-btn" onclick="checkQuiz('${opt}', '${q.word}', this)">
+            <span class="text-gray-400 font-bold mr-2">${['A','B','C','D'][i]}.</span>${opt}
+          </button>
+        `).join('')}
+      </div>
+      <div id="feedbackArea"></div>
+    </div>
+  `;
+}
+
+function checkQuiz(chosen, correct, btn) {
+  if (gameAnswered) return;
+  gameAnswered = true;
+  const allBtns = document.querySelectorAll('#optionGrid .option-btn');
+  allBtns.forEach(b => b.disabled = true);
+
+  if (chosen === correct) {
+    btn.classList.add('correct');
+    gameCorrect++;
+    playSound(true);
+  } else {
+    btn.classList.add('wrong');
+    playSound(false);
+    allBtns.forEach(b => { if (b.textContent.includes(correct)) b.classList.add('correct'); });
+  }
+
+  const q = gameQuestions[gameCurrentQ];
+  showFeedback(chosen === correct, q);
+}
+
+// ===================================================
+// LISTEN WORD GAME
+// ===================================================
+function renderListenWordQ(q) {
+  const wrongs = vocab.filter(v => v.word !== q.word);
+  const distractors = shuffle(wrongs).slice(0, 3).map(v => v.word);
+  const options = shuffle([q.word, ...distractors]);
+
+  document.getElementById('gameContent').innerHTML = `
+    <div class="space-y-4">
+      <p class="text-sm font-bold text-gray-400 uppercase tracking-wide">Nghe và chọn từ đúng:</p>
+      <div class="flex justify-center">
+        <button onclick="speak('${q.word}')" class="w-24 h-24 rounded-full bg-gradient-to-br from-blue-200 to-cyan-200 hover:from-blue-300 hover:to-cyan-300 flex flex-col items-center justify-center shadow-lg transition hover:scale-105 gap-1">
+          <span class="text-4xl">🎧</span>
+          <span class="text-xs font-bold text-blue-600">Nghe</span>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-3" id="optionGrid">
+        ${options.map((opt, i) => `
+          <button class="option-btn" onclick="checkListenWord('${opt}', '${q.word}', this)">
+            <span class="text-gray-400 font-bold mr-2">${['A','B','C','D'][i]}.</span>${opt}
+          </button>
+        `).join('')}
+      </div>
+      <div id="feedbackArea"></div>
+    </div>
+  `;
+  setTimeout(() => speak(q.word), 400);
+}
+
+function checkListenWord(chosen, correct, btn) {
+  if (gameAnswered) return;
+  gameAnswered = true;
+  const allBtns = document.querySelectorAll('#optionGrid .option-btn');
+  allBtns.forEach(b => b.disabled = true);
+  if (chosen === correct) { btn.classList.add('correct'); gameCorrect++; playSound(true); }
+  else { btn.classList.add('wrong'); playSound(false); allBtns.forEach(b => { if (b.textContent.includes(correct)) b.classList.add('correct'); }); }
+  showFeedback(chosen === correct, gameQuestions[gameCurrentQ]);
+}
+
+// ===================================================
+// TYPING GAME
+// ===================================================
+function renderTypingQ(q) {
+  document.getElementById('gameContent').innerHTML = `
+    <div class="space-y-4">
+      <p class="text-sm font-bold text-gray-400 uppercase tracking-wide">Gõ từ tiếng Anh dựa theo nghĩa:</p>
+      <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-5 text-center">
+        <p class="font-black text-3xl text-orange-600">${q.meaning}</p>
+        <p class="text-sm font-mono text-blue-400 mt-1">${q.ipa}</p>
+      </div>
+      <input type="text" id="typingInput" placeholder="Nhập từ tiếng Anh..." autocomplete="off" autocorrect="off" autocapitalize="off"
+        class="w-full px-5 py-3 rounded-2xl border-2 border-yellow-200 bg-yellow-50 focus:outline-none focus:border-yellow-400 font-bold text-lg text-center"
+        onkeydown="if(event.key==='Enter') checkTyping('${q.word}')">
+      <button onclick="checkTyping('${q.word}')" class="w-full py-3 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-white font-black text-base transition hover:scale-105 shadow">
+        Kiểm tra ✓
+      </button>
+      <div id="feedbackArea"></div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('typingInput')?.focus(), 100);
+}
+
+function checkTyping(correct) {
+  if (gameAnswered) return;
+  const input = document.getElementById('typingInput');
+  if (!input) return;
+  const val = input.value.trim().toLowerCase();
+  gameAnswered = true;
+  input.disabled = true;
+  const isCorrect = val === correct.toLowerCase();
+  input.style.borderColor = isCorrect ? '#34d399' : '#f87171';
+  input.style.background = isCorrect ? '#d1fae5' : '#fee2e2';
+  if (isCorrect) gameCorrect++;
+  playSound(isCorrect);
+  showFeedback(isCorrect, gameQuestions[gameCurrentQ]);
+}
+
+// ===================================================
+// LISTEN SENTENCE GAME
+// ===================================================
+function renderListenSentenceQ(q) {
+  const sentence = formatExampleText(q.example);
+  document.getElementById('gameContent').innerHTML = `
+    <div class="space-y-4">
+      <p class="text-sm font-bold text-gray-400 uppercase tracking-wide">Nghe câu và gõ lại:</p>
+      <div class="flex justify-center gap-3">
+        <button onclick="speak('${sentence.replace(/'/g,"&#39;")}')" class="w-20 h-20 rounded-full bg-gradient-to-br from-pink-200 to-red-200 hover:from-pink-300 hover:to-red-300 flex flex-col items-center justify-center shadow-lg transition hover:scale-105">
+          <span class="text-3xl">🎙️</span>
+          <span class="text-xs font-bold text-pink-600 mt-1">Nghe</span>
+        </button>
+      </div>
+      <textarea id="sentenceInput" rows="3" placeholder="Gõ lại câu bạn vừa nghe..." autocomplete="off"
+        class="w-full px-5 py-3 rounded-2xl border-2 border-pink-200 bg-pink-50 focus:outline-none focus:border-pink-400 font-semibold resize-none text-base"></textarea>
+      <button onclick="checkSentence('${sentence.replace(/'/g,"&#39;")}')" class="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-400 to-red-400 hover:from-pink-500 hover:to-red-500 text-white font-black text-base transition hover:scale-105 shadow">
+        Kiểm tra ✓
+      </button>
+      <div id="feedbackArea"></div>
+    </div>
+  `;
+  setTimeout(() => speak(sentence), 600);
+}
+
+function checkSentence(correct) {
+  if (gameAnswered) return;
+  const input = document.getElementById('sentenceInput');
+  if (!input) return;
+  const val = normalizeStr(input.value);
+  const correctN = normalizeStr(correct);
+  gameAnswered = true;
+  input.disabled = true;
+  const isCorrect = val === correctN;
+  if (isCorrect) gameCorrect++;
+  playSound(isCorrect);
+  showFeedback(isCorrect, gameQuestions[gameCurrentQ], correct);
+}
+
+function normalizeStr(s) {
+  return s.trim().toLowerCase().replace(/[.,!?;:]/g, '').replace(/\s+/g, ' ');
+}
+
+// ===================================================
+// FEEDBACK & NEXT
+// ===================================================
+function showFeedback(correct, q, fullSentence) {
+  const area = document.getElementById('feedbackArea');
+  const exampleTxt = fullSentence || formatExampleText(q.example);
+  area.innerHTML = `
+    <div class="${correct ? 'feedback-correct' : 'feedback-wrong'}">
+      <div class="font-black text-lg mb-1">${correct ? '🎉 Chính xác!' : '❌ Sai rồi!'}</div>
+      <div class="font-bold text-base">${q.word} <span class="font-mono text-sm opacity-70">${q.ipa}</span></div>
+      <div class="text-sm mt-1">Nghĩa: <strong>${q.meaning}</strong></div>
+      <div class="text-sm italic mt-1 opacity-80">${exampleTxt}</div>
+    </div>
+    <button onclick="nextGameQuestion()" class="mt-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 hover:from-purple-500 hover:to-blue-500 text-white font-black text-sm transition hover:scale-105 shadow">
+      ${gameCurrentQ + 1 < gameQuestions.length ? 'Câu tiếp ›' : 'Xem kết quả 🏆'}
+    </button>
+  `;
+}
+
+function nextGameQuestion() {
+  gameCurrentQ++;
+  if (gameCurrentQ >= gameQuestions.length) { showGameSummary(); return; }
+  renderGameQuestion();
+}
+
+// ===================================================
+// MATCHING GAME
+// ===================================================
+function startMatching() {
+  matchSelected = null;
+  matchCorrectCount = 0;
+  // Use all vocab
+  matchPairs = shuffle([...vocab]).map(v => ({ word: v.word, meaning: v.meaning, matched: false }));
+
+  document.getElementById('gameProgressWrap').style.display = 'none';
+  renderMatchingBoard();
+}
+
+function renderMatchingBoard() {
+  const page = matchPairs.slice(0, 10); // Show 10 at a time for usability
+  const words = shuffle([...page]);
+  const meanings = shuffle([...page]);
+
+  document.getElementById('gameContent').innerHTML = `
+    <div>
+      <p class="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Nhấn một từ, rồi nhấn nghĩa tương ứng:</p>
+      <div class="flex gap-3">
+        <div class="flex-1 space-y-2" id="wordCol">
+          ${words.map(p => `
+            <div class="match-item match-word" id="mw-${p.word}" onclick="selectMatch('word','${p.word}')">
+              ${p.word}
+            </div>
+          `).join('')}
+        </div>
+        <div class="flex-1 space-y-2" id="meaningCol">
+          ${meanings.map(p => `
+            <div class="match-item match-meaning" id="mm-${p.word}" onclick="selectMatch('meaning','${p.word}')">
+              ${p.meaning}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <p id="matchStatus" class="text-center text-sm font-bold text-purple-500 mt-4"></p>
+    </div>
+  `;
+}
+
+let matchSelectedWord = null;
+let matchSelectedMeaning = null;
+let matchScore = 0;
+let matchTotal = 0;
+
+function selectMatch(type, key) {
+  const el = document.getElementById(type === 'word' ? `mw-${key}` : `mm-${key}`);
+  if (!el || el.classList.contains('matched-correct')) return;
+
+  if (type === 'word') {
+    // Deselect previous
+    if (matchSelectedWord) {
+      const prev = document.getElementById(`mw-${matchSelectedWord}`);
+      if (prev) prev.classList.remove('selected');
+    }
+    matchSelectedWord = key;
+    el.classList.add('selected');
+  } else {
+    if (matchSelectedMeaning) {
+      const prev = document.getElementById(`mm-${matchSelectedMeaning}`);
+      if (prev) prev.classList.remove('selected');
+    }
+    matchSelectedMeaning = key;
+    el.classList.add('selected');
+  }
+
+  // If both selected, check match
+  if (matchSelectedWord && matchSelectedMeaning) {
+    const wEl = document.getElementById(`mw-${matchSelectedWord}`);
+    const mEl = document.getElementById(`mm-${matchSelectedMeaning}`);
+    matchTotal++;
+
+    if (matchSelectedWord === matchSelectedMeaning) {
+      // Correct
+      matchScore++;
+      wEl.classList.remove('selected'); mEl.classList.remove('selected');
+      wEl.classList.add('matched-correct'); mEl.classList.add('matched-correct');
+      playSound(true);
+      document.getElementById('matchStatus').textContent = `✓ Đúng rồi! +1`;
+
+      // Check if all matched
+      const allMatched = document.querySelectorAll('.match-item:not(.matched-correct)').length === 0;
+      if (allMatched) {
+        gameCorrect = matchScore;
+        gameQuestions = Array(matchTotal).fill(null);
+        setTimeout(() => showMatchSummary(), 600);
+      }
+    } else {
+      // Wrong
+      wEl.classList.add('matched-wrong'); mEl.classList.add('matched-wrong');
+      playSound(false);
+      document.getElementById('matchStatus').textContent = `✗ Sai! Hãy thử lại.`;
+      setTimeout(() => {
+        wEl.classList.remove('matched-wrong', 'selected');
+        mEl.classList.remove('matched-wrong', 'selected');
+        document.getElementById('matchStatus').textContent = '';
+      }, 800);
+    }
+
+    matchSelectedWord = null;
+    matchSelectedMeaning = null;
+  }
+}
+
+function showMatchSummary() {
+  const pct = Math.round((matchScore / matchTotal) * 100);
+  scores['matching'] = { correct: matchScore, total: matchTotal };
+  saveScores();
+  updateScoreDisplay();
+
+  document.getElementById('gameContent').innerHTML = `
+    <div class="text-center space-y-5">
+      <div class="text-6xl">${pct >= 80 ? '🏆' : pct >= 50 ? '👍' : '💪'}</div>
+      <h3 class="font-black text-2xl text-purple-700">Ghép cặp hoàn thành!</h3>
+      <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-5">
+        <div class="font-black text-5xl text-purple-600">${matchScore} <span class="text-2xl text-gray-400">/ ${matchTotal}</span></div>
+        <div class="font-bold text-gray-500 mt-1">Số lần đúng / Tổng số lần ghép</div>
+      </div>
+      <button onclick="closeModal()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 text-white font-black text-base shadow hover:scale-105 transition">
+        Đóng
+      </button>
+      <button onclick="openGame('matching')" class="w-full py-3 rounded-2xl bg-white border-2 border-purple-200 text-purple-600 font-black text-base hover:bg-purple-50 transition">
+        🔄 Chơi lại
+      </button>
+    </div>
+  `;
+}
+
+// ===================================================
+// GAME SUMMARY
+// ===================================================
+function showGameSummary() {
+  const total = gameQuestions.length;
+  const pct = Math.round((gameCorrect / total) * 100);
+
+  // Save score
+  scores[currentGame] = { correct: gameCorrect, total };
+  saveScores();
+  updateScoreDisplay();
+
+  // Find wrong ones
+  document.getElementById('gameContent').innerHTML = `
+    <div class="text-center space-y-5">
+      <div class="text-6xl">${pct >= 80 ? '🏆' : pct >= 50 ? '😊' : '💪'}</div>
+      <h3 class="font-black text-2xl text-purple-700">Kết quả</h3>
+      <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-5">
+        <div class="font-black text-5xl text-purple-600">${gameCorrect} <span class="text-2xl text-gray-400">/ ${total}</span></div>
+        <div class="font-bold text-gray-500 mt-1">${pct}% chính xác</div>
+        <div class="mt-2 w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div style="width:${pct}%; background: linear-gradient(90deg, #a78bfa, #60a5fa);" class="h-full rounded-full transition-all duration-700"></div>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="closeModal()" class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 text-white font-black text-sm shadow hover:scale-105 transition">
+          Đóng
+        </button>
+        <button onclick="openGame('${currentGame}')" class="flex-1 py-3 rounded-2xl bg-white border-2 border-purple-200 text-purple-600 font-black text-sm hover:bg-purple-50 transition">
+          🔄 Chơi lại
+        </button>
+      </div>
+    </div>
+  `;
+  document.getElementById('gameProgressWrap').style.display = 'block';
+  document.getElementById('gameProgressBar').style.width = '100%';
+  document.getElementById('gameProgressLabel').textContent = `Hoàn thành!`;
+  document.getElementById('gameScoreLabel').textContent = `Đúng: ${gameCorrect}`;
+}
+
+// ===================================================
+// OVERALL SUMMARY
+// ===================================================
+function showSummary() {
+  const gameKeys = ['quiz', 'listenWord', 'typing', 'matching', 'listenSentence'];
+  const gameNames = { quiz: 'Trắc nghiệm', listenWord: 'Nghe từ', typing: 'Gõ từ', matching: 'Ghép cặp', listenSentence: 'Nghe câu' };
+  const gameColors = { quiz: '#a78bfa', listenWord: '#60a5fa', typing: '#fbbf24', matching: '#34d399', listenSentence: '#f472b6' };
+
+  const played = gameKeys.filter(k => scores[k]);
+  if (!played.length) {
+    document.getElementById('summaryContent').innerHTML = '<p class="text-sm font-semibold text-gray-400">Chưa có dữ liệu. Hãy chơi ít nhất 1 trò chơi!</p>';
+    return;
+  }
+
+  let totalCorrect = 0, totalQ = 0;
+  played.forEach(k => { totalCorrect += scores[k].correct; totalQ += scores[k].total; });
+  const avgPct = totalQ ? Math.round((totalCorrect / totalQ) * 100) : 0;
+
+  // Build pie chart data
+  const pieData = played.map(k => ({
+    name: gameNames[k],
+    pct: Math.round((scores[k].correct / scores[k].total) * 100),
+    color: gameColors[k]
+  }));
+
+  const pieHTML = buildPieChart(pieData, avgPct);
+
+  const gameRows = gameKeys.map(k => {
+    if (!scores[k]) return `<tr><td class="px-3 py-2 font-bold text-gray-500">${gameNames[k]}</td><td class="px-3 py-2 text-gray-300 text-sm">Chưa chơi</td></tr>`;
+    const s = scores[k];
+    const p = Math.round((s.correct/s.total)*100);
+    return `<tr><td class="px-3 py-2 font-bold" style="color:${gameColors[k]}">${gameNames[k]}</td><td class="px-3 py-2 font-black text-gray-700">${s.correct}/${s.total} <span class="text-sm font-semibold text-gray-400">(${p}%)</span></td></tr>`;
+  }).join('');
+
+  document.getElementById('summaryContent').innerHTML = `
+    <div class="space-y-5">
+      <div class="flex flex-col sm:flex-row gap-5 items-center">
+        <div class="flex-shrink-0">${pieHTML}</div>
+        <div class="flex-1 space-y-2">
+          <p class="font-black text-3xl text-orange-600">${avgPct}% <span class="text-lg font-bold text-gray-400">Độ chính xác TB</span></p>
+          <table class="w-full text-sm rounded-xl overflow-hidden">
+            <tbody>${gameRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildPieChart(data, avgPct) {
+  const r = 60, cx = 70, cy = 70, size = 140;
+  let offset = 0;
+  const circumference = 2 * Math.PI * r;
+
+  const slices = data.map(d => {
+    const dash = (d.pct / 100) * circumference;
+    const gap = circumference - dash;
+    const s = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="14"
+      stroke-dasharray="${dash} ${gap}"
+      stroke-dashoffset="${-offset * circumference / 100}"
+      transform="rotate(-90 ${cx} ${cy})" opacity="0.85"/>`;
+    offset += d.pct / data.length;
+    return s;
+  });
+
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#f3f4f6" stroke-width="14"/>
+    ${slices.join('')}
+    <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-family="Nunito" font-weight="900" font-size="20" fill="#7c3aed">${avgPct}%</text>
+    <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="Nunito" font-weight="700" font-size="10" fill="#9ca3af">chính xác</text>
+  </svg>`;
+}
+
+// ===================================================
+// SCORE DISPLAY
+// ===================================================
+function updateScoreDisplay() {
+  const gameKeys = ['quiz', 'listenWord', 'typing', 'matching', 'listenSentence'];
+  gameKeys.forEach(k => {
+    const el = document.getElementById(`score-${k}`);
+    if (el && scores[k]) {
+      const p = Math.round((scores[k].correct / scores[k].total) * 100);
+      el.textContent = `${scores[k].correct}/${scores[k].total} (${p}%)`;
+    }
+  });
+}
+
+function saveScores() { localStorage.setItem('vocabScores', JSON.stringify(scores)); }
+
+// ===================================================
+// SOUND
+// ===================================================
+function playSound(correct) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if (correct) { o.frequency.setValueAtTime(600, ctx.currentTime); o.frequency.setValueAtTime(900, ctx.currentTime + 0.1); }
+    else { o.frequency.setValueAtTime(250, ctx.currentTime); o.frequency.setValueAtTime(180, ctx.currentTime + 0.15); }
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    o.start(ctx.currentTime);
+    o.stop(ctx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+// ===================================================
+// UTILS
+// ===================================================
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ===================================================
+// BOOT
+// ===================================================
+loadVocab();
+</script>
+</body>
+</html>
